@@ -38,27 +38,14 @@
                 <tr>
                   <th>Nom</th>
                   <th>Email</th>
-                  <th>Dernière humeur</th>
-                  <th>Date</th>
+                  <th>Date de création</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="employee in employees" :key="employee.id">
                   <td>{{ employee.full_name }}</td>
                   <td>{{ employee.email }}</td>
-                  <td>
-                    <span v-if="getLastMood(employee.id)" class="mood-indicator">
-                      {{ getMoodEmoji(getLastMood(employee.id)!.mood_level) }}
-                      {{ getMoodLabel(getLastMood(employee.id)!.mood_level) }}
-                    </span>
-                    <span v-else class="no-data">Aucune donnée</span>
-                  </td>
-                  <td>
-                    <span v-if="getLastMood(employee.id)">
-                      {{ formatDate(getLastMood(employee.id)!.created_at) }}
-                    </span>
-                    <span v-else>-</span>
-                  </td>
+                  <td>{{ formatDate(employee.created_at) }}</td>
                 </tr>
               </tbody>
             </table>
@@ -207,9 +194,6 @@ const loadComments = async () => {
   if (data) comments.value = data;
 };
 
-const getLastMood = (userId: string) => {
-  return moodEntries.value.find(entry => entry.user_id === userId);
-};
 
 const handleCreateEmployee = async () => {
   try {
@@ -238,10 +222,6 @@ const getMoodEmoji = (level: number) => {
   return emojis[level - 1];
 };
 
-const getMoodLabel = (level: number) => {
-  const labels = ['Très mauvais', 'Mauvais', 'Neutre', 'Bien', 'Excellent'];
-  return labels[level - 1];
-};
 
 const formatDate = (date: string) => {
   return new Date(date).toLocaleDateString('fr-FR', {
@@ -553,14 +533,78 @@ td {
 }
 
 @media (max-width: 768px) {
+  .card {
+    padding: 16px;
+  }
+
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .stat-value {
+    font-size: 28px;
+  }
+
+  .stat-label {
+    font-size: 12px;
   }
 
   .card-header {
     flex-direction: column;
     align-items: stretch;
-    gap: 16px;
+    gap: 12px;
+  }
+
+  .card h3 {
+    font-size: 18px;
+    margin-bottom: 16px;
+  }
+
+  .table-container {
+    font-size: 14px;
+  }
+
+  th, td {
+    padding: 8px 6px;
+    font-size: 13px;
+  }
+
+  .primary-button,
+  .secondary-button {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+
+  .modal-content {
+    padding: 24px 20px;
+  }
+
+  .modal-content h2 {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  table {
+    font-size: 12px;
+  }
+
+  th, td {
+    padding: 6px 4px;
+  }
+
+  .mood-label {
+    font-size: 20px;
+    width: 24px;
+  }
+
+  .mood-bar-wrapper {
+    height: 28px;
   }
 }
 </style>

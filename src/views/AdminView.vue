@@ -584,14 +584,32 @@ td {
 }
 
 @media (max-width: 768px) {
+  .card {
+    padding: 16px;
+  }
+
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .stat-value {
+    font-size: 28px;
+  }
+
+  .stat-label {
+    font-size: 12px;
   }
 
   .card-header {
     flex-direction: column;
     align-items: stretch;
-    gap: 16px;
+    gap: 12px;
+  }
+
+  .card h3 {
+    font-size: 18px;
+    margin-bottom: 16px;
   }
 
   .table-container {
@@ -599,7 +617,55 @@ td {
   }
 
   th, td {
-    padding: 8px;
+    padding: 8px 6px;
+    font-size: 13px;
+  }
+
+  .primary-button,
+  .secondary-button {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+
+  .modal-content {
+    padding: 24px 20px;
+  }
+
+  .modal-content h2 {
+    font-size: 20px;
+  }
+
+  .role-badge {
+    font-size: 11px;
+    padding: 3px 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  table {
+    font-size: 12px;
+  }
+
+  th, td {
+    padding: 6px 4px;
+  }
+
+  .delete-button {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
+  .mood-label {
+    font-size: 20px;
+    width: 24px;
+  }
+
+  .mood-bar-wrapper {
+    height: 28px;
   }
 }
 </style>

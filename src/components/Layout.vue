@@ -131,22 +131,65 @@ const handleSignOut = async () => {
 
 @media (max-width: 768px) {
   .header-content {
-    flex-direction: column;
-    gap: 16px;
-    align-items: stretch;
+    padding: 12px 16px;
   }
 
-  .header-left,
-  .header-right {
-    justify-content: space-between;
+  .header-logo {
+    height: 32px;
   }
 
   .header-title {
-    font-size: 18px;
+    font-size: 16px;
+  }
+
+  .header-right {
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
   .user-name {
+    font-size: 13px;
+  }
+
+  .user-role {
+    font-size: 12px;
+    padding: 3px 10px;
+  }
+
+  .sign-out-button {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  .main-content {
+    padding: 20px 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-left {
+    gap: 12px;
+  }
+
+  .header-logo {
+    height: 28px;
+  }
+
+  .header-title {
     font-size: 14px;
+  }
+
+  .header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .user-name {
+    display: none;
+  }
+
+  .main-content {
+    padding: 16px 12px;
   }
 }
 </style>
