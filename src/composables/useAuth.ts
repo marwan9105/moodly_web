@@ -57,23 +57,16 @@ export function useAuth() {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          full_name: fullName,
+          role: role,
+          created_by: user.value?.id,
+        },
+      },
     });
 
     if (error) throw error;
-
-    if (data.user) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: data.user.id,
-          email,
-          full_name: fullName,
-          role,
-          created_by: user.value?.id,
-        });
-
-      if (profileError) throw profileError;
-    }
 
     return data;
   };
