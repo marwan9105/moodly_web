@@ -1,13 +1,10 @@
-import { createRouter, createWebHistory } from 'vue-router';
-import { useAuth } from '../composables/useAuth';
+import { createRouter, createWebHistory } from 'vue-router'
+import { useAuth } from '../composables/useAuth'
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    {
-      path: '/',
-      redirect: '/login',
-    },
+    { path: '/', redirect: '/login' },
     {
       path: '/login',
       name: 'Login',
@@ -33,36 +30,35 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresRole: 'employee' },
     },
   ],
-});
+})
 
-router.beforeEach(async (to, _from, next) => {
-  const { isAuthenticated, profile, loading, loadUser } = useAuth();
+router.beforeEach(async (to) => {
+  const { ready, loading, isAuthenticated, profile } = useAuth()
 
-  if (loading.value) {
-    await loadUser();
-  }
+  await ready()
+
+  if (loading.value) return false
 
   if (to.meta.requiresAuth && !isAuthenticated.value) {
-    next('/login');
-  } else if (to.meta.requiresGuest && isAuthenticated.value) {
-    if (profile.value?.role === 'admin') {
-      next('/admin');
-    } else if (profile.value?.role === 'manager') {
-      next('/manager');
-    } else {
-      next('/employee');
-    }
-  } else if (to.meta.requiresRole && profile.value?.role !== to.meta.requiresRole) {
-    if (profile.value?.role === 'admin') {
-      next('/admin');
-    } else if (profile.value?.role === 'manager') {
-      next('/manager');
-    } else {
-      next('/employee');
-    }
-  } else {
-    next();
+    return { path: '/login', query: { redirect: to.fullPath } }
   }
-});
 
-export default router;
+  if (to.meta.requiresGuest && isAuthenticated.value) {
+    const role = profile.value?.role
+    if (role === 'admin') return { path: '/admin' }
+    if (role === 'manager') return { path: '/manager' }
+    return { path: '/employee' }
+  }
+
+  const needed = to.meta.requiresRole as string | undefined
+  if (needed && profile.value?.role !== needed) {
+    const role = profile.value?.role
+    if (role === 'admin') return { path: '/admin' }
+    if (role === 'manager') return { path: '/manager' }
+    return { path: '/employee' }
+  }
+
+  return true
+})
+
+export default router

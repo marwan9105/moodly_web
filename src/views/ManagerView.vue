@@ -32,6 +32,10 @@
             </button>
           </div>
 
+          <div v-if="deleteError" class="error-message" style="margin-bottom:12px">
+            {{ deleteError }}
+          </div>
+
           <div class="table-container">
             <table>
               <thead>
@@ -39,6 +43,7 @@
                   <th>Nom</th>
                   <th>Email</th>
                   <th>Date de création</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -46,6 +51,18 @@
                   <td>{{ employee.full_name }}</td>
                   <td>{{ employee.email }}</td>
                   <td>{{ formatDate(employee.created_at) }}</td>
+                  <td>
+                    <button
+                      class="delete-button"
+                      @click="handleDeleteEmployee(employee)"
+                      :disabled="isDeletingId === employee.id"
+                    >
+                      {{ isDeletingId === employee.id ? 'Suppression…' : 'Supprimer' }}
+                    </button>
+                  </td>
+                </tr>
+                <tr v-if="employees.length === 0">
+                  <td colspan="4" class="no-data">Aucun employé trouvé</td>
                 </tr>
               </tbody>
             </table>
@@ -55,7 +72,11 @@
         <div class="card">
           <h3>Distribution des humeurs</h3>
           <div class="mood-chart">
-            <div v-for="entry in moodStats" :key="entry.mood_level" class="mood-bar-container">
+            <div
+              v-for="entry in moodStats"
+              :key="entry.mood_level"
+              class="mood-bar-container"
+            >
               <div class="mood-label">{{ getMoodEmoji(entry.mood_level) }}</div>
               <div class="mood-bar-wrapper">
                 <div
@@ -100,7 +121,13 @@
 
             <div class="form-group">
               <label for="password">Mot de passe</label>
-              <input id="password" v-model="newEmployee.password" type="password" required minlength="6" />
+              <input
+                id="password"
+                v-model="newEmployee.password"
+                type="password"
+                required
+                minlength="6"
+              />
             </div>
 
             <div class="modal-actions">
@@ -124,7 +151,7 @@ import Layout from '../components/Layout.vue';
 import { supabase, type Profile, type MoodEntry, type AnonymousComment } from '../lib/supabase';
 import { useAuth } from '../composables/useAuth';
 
-const { createUser } = useAuth();
+const { createUser, user, ready } = useAuth();
 
 const employees = ref<Profile[]>([]);
 const moodEntries = ref<MoodEntry[]>([]);
@@ -132,6 +159,10 @@ const comments = ref<AnonymousComment[]>([]);
 const showCreateModal = ref(false);
 const createError = ref('');
 const isCreating = ref(false);
+
+// suppression
+const deleteError = ref('');
+const isDeletingId = ref<string | null>(null);
 
 const newEmployee = ref({
   fullName: '',
@@ -169,11 +200,18 @@ const averageMood = computed(() => {
 });
 
 const loadEmployees = async () => {
-  const { data } = await supabase
+  deleteError.value = '';
+  const { data, error } = await supabase
     .from('profiles')
     .select('*')
     .eq('role', 'employee')
+    .eq('created_by', user.value?.id ?? '')
     .order('created_at', { ascending: false });
+
+  if (error) {
+    deleteError.value = error.message;
+    return;
+  }
   if (data) employees.value = data;
 };
 
@@ -217,6 +255,28 @@ const handleCreateEmployee = async () => {
   }
 };
 
+const handleDeleteEmployee = async (employee: Profile) => {
+  deleteError.value = '';
+  if (!confirm(`Supprimer ${employee.full_name || employee.email} ?`)) return;
+
+  try {
+    isDeletingId.value = employee.id;
+
+    const { error } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', employee.id);
+
+    if (error) throw error;
+
+    employees.value = employees.value.filter(e => e.id !== employee.id);
+  } catch (e: any) {
+    deleteError.value = e.message || 'Erreur lors de la suppression';
+  } finally {
+    isDeletingId.value = null;
+  }
+};
+
 const getMoodEmoji = (level: number) => {
   const emojis = ['😢', '😕', '😐', '🙂', '😄'];
   return emojis[level - 1];
@@ -231,10 +291,11 @@ const formatDate = (date: string) => {
   });
 };
 
-onMounted(() => {
-  loadEmployees();
-  loadMoodEntries();
-  loadComments();
+onMounted(async () => {
+  await ready();
+  await loadEmployees();
+  await loadMoodEntries();
+  await loadComments();
 });
 </script>
 
@@ -366,6 +427,12 @@ td {
   border-bottom: 1px solid #f0f0f0;
 }
 
+.no-data {
+  color: #999;
+  font-style: italic;
+  text-align: center;
+}
+
 .mood-indicator {
   display: inline-flex;
   align-items: center;
@@ -375,11 +442,6 @@ td {
   border-radius: 8px;
   font-size: 14px;
   font-weight: 600;
-}
-
-.no-data {
-  color: #999;
-  font-style: italic;
 }
 
 .mood-chart {
@@ -523,6 +585,20 @@ td {
   margin-top: 8px;
 }
 
+.delete-button {
+  background: #fee;
+  color: #c33;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.delete-button:hover:not(:disabled) { background: #fcc; }
+.delete-button:disabled { opacity: .6; cursor: not-allowed; }
+
 .error-message {
   background: #fee;
   color: #c33;
@@ -533,22 +609,15 @@ td {
 }
 
 @media (max-width: 768px) {
-  .card {
-    padding: 16px;
-  }
+  .card { padding: 16px; }
 
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
   }
 
-  .stat-value {
-    font-size: 28px;
-  }
-
-  .stat-label {
-    font-size: 12px;
-  }
+  .stat-value { font-size: 28px; }
+  .stat-label { font-size: 12px; }
 
   .card-header {
     flex-direction: column;
@@ -561,9 +630,7 @@ td {
     margin-bottom: 16px;
   }
 
-  .table-container {
-    font-size: 14px;
-  }
+  .table-container { font-size: 14px; }
 
   th, td {
     padding: 8px 6px;
@@ -576,35 +643,17 @@ td {
     font-size: 13px;
   }
 
-  .modal-content {
-    padding: 24px 20px;
-  }
-
-  .modal-content h2 {
-    font-size: 20px;
-  }
+  .modal-content { padding: 24px 20px; }
+  .modal-content h2 { font-size: 20px; }
 }
 
 @media (max-width: 480px) {
-  .stats-grid {
-    grid-template-columns: 1fr 1fr;
-  }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
 
-  table {
-    font-size: 12px;
-  }
+  table { font-size: 12px; }
+  th, td { padding: 6px 4px; }
 
-  th, td {
-    padding: 6px 4px;
-  }
-
-  .mood-label {
-    font-size: 20px;
-    width: 24px;
-  }
-
-  .mood-bar-wrapper {
-    height: 28px;
-  }
+  .mood-label { font-size: 20px; width: 24px; }
+  .mood-bar-wrapper { height: 28px; }
 }
 </style>
