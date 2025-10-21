@@ -5,20 +5,20 @@ Les rôles disponibles sont : `admin`, `manager`, `employee`.
 
 ---
 
-## 🚀 Lancer le projet en local
+## Lancer le projet en local
 
-### 1️⃣ Cloner le dépôt
+### 1️. Cloner le dépôt
 ```bash
 git clone https://github.com/marwan9105/moodly_web.git
 cd moodly_web
 ```
 
-### 2️⃣ Installer les dépendances
+### 2️. Installer les dépendances
 ```bash
 npm install
 ```
 
-### 3️⃣ Créer un projet Supabase
+### 3️. Créer un projet Supabase
 1. Va sur [https://supabase.com/](https://supabase.com/)  
 2. Clique sur **New Project** et crée ton projet  
 3. Va dans **Project Settings → API**
@@ -27,7 +27,7 @@ npm install
 
 ---
 
-## 🔑 Configurer l’environnement
+## Configurer l’environnement
 
 Crée un fichier `.env` à la racine avec :
 
@@ -40,7 +40,7 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1...
 
 ---
 
-## 🧱 Importer la base de données
+## Importer la base de données
 
 Dans Supabase :
 
@@ -57,7 +57,7 @@ Dans Supabase :
 
 ---
 
-## 🧩 Démarrage du projet
+## Démarrage du projet
 
 ```bash
 npm run dev
@@ -68,7 +68,7 @@ L’application sera disponible sur :
 
 ---
 
-## 👤 Compte Admin par défaut (exemple)
+## Compte Admin par défaut (exemple)
 
 | Rôle | Email | Mot de passe |
 |------|--------|--------------|
