@@ -1,4 +1,4 @@
-# 🌿 Moodly
+# Moodly
 
 Application web construite avec **Vue 3 + Vite + TypeScript** et **Supabase** pour suivre le bien-être des employés.  
 Les rôles disponibles sont : `admin`, `manager`, `employee`.
@@ -64,7 +64,7 @@ npm run dev
 ```
 
 L’application sera disponible sur :
-👉 [http://localhost:5173](http://localhost:5173)
+-> [http://localhost:5173](http://localhost:5173)
 
 ---
 
