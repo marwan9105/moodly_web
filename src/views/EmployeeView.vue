@@ -91,6 +91,51 @@
         </div>
       </div>
     </div>
+
+    <!-- ===== Popup de soutien (après enregistrement, si humeur <= seuil) ===== -->
+    <transition name="fade">
+      <div
+        v-if="showSupportModal"
+        class="modal-backdrop"
+        role="dialog"
+        aria-modal="true"
+        :aria-labelledby="modalTitleId"
+        @keydown.esc.prevent="closeSupport"
+      >
+        <div class="modal-card" ref="modalCard">
+          <h2 :id="modalTitleId" class="modal-title">On est là pour toi 🤝</h2>
+          <p class="modal-text">
+            Merci d’avoir partagé comment tu te sens. Si tu veux en parler, tu peux contacter
+            notre <strong>psychologue du travail</strong>.
+          </p>
+
+          <div class="support-box">
+            <div class="support-label">Psychologue du travail</div>
+            <div class="support-phone">{{ SUPPORT_PHONE_LABEL }}</div>
+            <div class="support-actions">
+              <a class="btn btn-outline" :href="`tel:${SUPPORT_PHONE}`">Appeler</a>
+              <button class="btn btn-outline" @click="copyPhone">
+                {{ copyOk ? 'Copié ✅' : 'Copier' }}
+              </button>
+            </div>
+          </div>
+
+          <details class="resources">
+            <summary>Ressources utiles</summary>
+            <ul>
+              <li>Parler à ton/ta manager ou RH (si tu es à l’aise)</li>
+              <li>Prendre une courte pause, respirations guidées 1–2 min</li>
+              <li>Planifier un 1:1 pour en discuter</li>
+            </ul>
+          </details>
+
+          <div class="modal-actions">
+            <button class="btn btn-ghost" @click="closeSupport">Fermer</button>
+            <button class="btn btn-primary" @click="ackSupport">Ça marche</button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </Layout>
 </template>
 
@@ -111,6 +156,19 @@ const isSubmittingComment = ref(false);
 const saveSuccess = ref(false);
 const commentSuccess = ref(false);
 
+/** ===== Config popup =====
+ * BAD_MOOD_THRESHOLD : seuil à/bas duquel on ouvre le popup, après enregistrement.
+ * SUPPORT_PHONE : numéro cliquable (format international recommandé).
+ * Si besoin, charge depuis Strapi/Supabase et remplace ces constantes.
+ */
+const BAD_MOOD_THRESHOLD = 2;
+const SUPPORT_PHONE = '+33 1 84 80 00 00';
+const SUPPORT_PHONE_LABEL = SUPPORT_PHONE;
+
+const showSupportModal = ref(false);
+const copyOk = ref(false);
+const modalTitleId = `support-${Math.random().toString(36).slice(2)}`;
+
 const loadMyMoodEntries = async () => {
   if (!user.value) return;
 
@@ -127,19 +185,36 @@ const loadMyMoodEntries = async () => {
 const saveMood = async () => {
   if (!selectedMood.value || !user.value) return;
 
+  // on garde la valeur choisie pour tester le seuil APRÈS l'insert
+  const chosen = selectedMood.value;
+
   try {
     isSaving.value = true;
     saveSuccess.value = false;
 
     const { error } = await supabase.from('mood_entries').insert({
       user_id: user.value.id,
-      mood_level: selectedMood.value,
+      mood_level: chosen,
       notes: moodNotes.value,
     });
 
     if (error) throw error;
 
+    // succès
     saveSuccess.value = true;
+
+    // afficher le popup uniquement si l'humeur enregistrée <= seuil
+    if (chosen <= BAD_MOOD_THRESHOLD) {
+      copyOk.value = false;
+      showSupportModal.value = true;
+      // focus accessible
+      requestAnimationFrame(() => {
+        const el = document.getElementById(modalTitleId) as HTMLElement | null;
+        el?.focus?.();
+      });
+    }
+
+    // reset UI
     selectedMood.value = null;
     moodNotes.value = '';
     await loadMyMoodEntries();
@@ -197,6 +272,23 @@ const formatDate = (date: string) => {
     minute: '2-digit',
   });
 };
+
+function closeSupport() {
+  showSupportModal.value = false;
+}
+function ackSupport() {
+  // tracer un event si besoin (avec consentement), puis fermer
+  showSupportModal.value = false;
+}
+async function copyPhone() {
+  try {
+    await navigator.clipboard.writeText(SUPPORT_PHONE);
+    copyOk.value = true;
+    setTimeout(() => (copyOk.value = false), 1500);
+  } catch {
+    copyOk.value = false;
+  }
+}
 
 onMounted(() => {
   loadMyMoodEntries();
@@ -393,14 +485,8 @@ onMounted(() => {
 }
 
 @keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .mood-history {
@@ -457,6 +543,125 @@ onMounted(() => {
   padding: 40px;
   color: #999;
 }
+
+/* ===== Styles popup ===== */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 16px;
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 520px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  padding: 20px;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.modal-text {
+  margin: 8px 0 0 0;
+  color: #444;
+  line-height: 1.5;
+}
+
+.support-box {
+  margin-top: 16px;
+  border: 1px solid #e6e6e6;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.support-label {
+  font-size: 12px;
+  color: #666;
+}
+
+.support-phone {
+  margin-top: 4px;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.support-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.resources {
+  margin-top: 12px;
+}
+
+.resources summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.resources ul {
+  margin: 8px 0 0 18px;
+  color: #555;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.btn {
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+
+.btn-outline {
+  background: #fff;
+  border: 2px solid #e0e0e0;
+  color: #333;
+}
+.btn-outline:hover {
+  background: #f7f7f7;
+  border-color: #ccc;
+}
+
+.btn-ghost {
+  background: #f5f5f5;
+  color: #666;
+  border: 2px solid #e0e0e0;
+}
+.btn-ghost:hover {
+  background: #e8e8e8;
+  border-color: #ccc;
+}
+
+.btn-primary {
+  background: #00bcbc;
+  color: #fff;
+  border: none;
+}
+.btn-primary:hover {
+  background: #009999;
+}
+
+.fade-enter-active, .fade-leave-active { transition: opacity .15s ease }
+.fade-enter-from, .fade-leave-to { opacity: 0 }
 
 @media (max-width: 768px) {
   .mood-selector {
