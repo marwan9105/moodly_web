@@ -642,31 +642,66 @@ td {
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 430px) {
+  html, body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .dashboard-grid {
+    gap: 16px;
+  }
+
+  .card {
+    padding: 14px;
+    overflow: hidden;
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .primary-button,
+  .secondary-button,
+  .delete-button {
+    padding: 8px 10px;
+    font-size: 12px;
+    border-radius: 6px;
+  }
+
   .stats-grid {
     grid-template-columns: 1fr 1fr;
+    gap: 12px;
   }
 
+  .stat-value { font-size: 24px; }
+  .stat-label { font-size: 12px; }
+
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
   table {
-    font-size: 12px;
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
   }
-
   th, td {
-    padding: 6px 4px;
+    padding: 10px 8px;
+    font-size: 12px;
+    vertical-align: top;
+    word-break: break-word;
   }
-
-  .delete-button {
-    font-size: 11px;
-    padding: 4px 8px;
+  td:nth-child(2) {
+    word-break: break-all;
   }
-
-  .mood-label {
-    font-size: 20px;
-    width: 24px;
-  }
-
-  .mood-bar-wrapper {
-    height: 28px;
+  .role-badge {
+    white-space: nowrap;
   }
 }
+
 </style>

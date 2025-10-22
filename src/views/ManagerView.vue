@@ -647,13 +647,46 @@ td {
   .modal-content h2 { font-size: 20px; }
 }
 
-@media (max-width: 480px) {
-  .stats-grid { grid-template-columns: 1fr 1fr; }
+@media (max-width: 430px) {
+  html, body { width: 100%; max-width: 100%; overflow-x: hidden; }
 
-  table { font-size: 12px; }
-  th, td { padding: 6px 4px; }
+  .dashboard-grid { gap: 16px; }
 
-  .mood-label { font-size: 20px; width: 24px; }
-  .mood-bar-wrapper { height: 28px; }
+  .card { padding: 14px; overflow: hidden; }
+
+  .card-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .primary-button,
+  .secondary-button,
+  .delete-button {
+    padding: 8px 10px;
+    font-size: 12px;
+    border-radius: 6px;
+  }
+
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .stat-value { font-size: 24px; }
+  .stat-label { font-size: 12px; }
+
+  .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+
+  th, td {
+    padding: 10px 8px;
+    font-size: 12px;
+    vertical-align: top;
+    word-break: break-word;
+  }
+
+  td:nth-child(2) { word-break: break-all; }
+
+  td:last-child, th:last-child { white-space: nowrap; }
+
+  .role-badge { white-space: nowrap; }
 }
 </style>
