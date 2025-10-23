@@ -90,7 +90,7 @@
         </div>
 
         <div class="card">
-          <h3>Commentaires anonymes récents</h3>
+          <h3>Les recommandation reçu</h3>
           <div class="comments-list">
             <div v-for="comment in comments" :key="comment.id" class="comment-item">
               <p>{{ comment.comment }}</p>

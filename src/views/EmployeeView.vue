@@ -62,7 +62,7 @@
         </div>
 
         <div class="card">
-          <h3>Commentaire anonyme</h3>
+          <h3>Recommandation anonyme</h3>
           <p class="card-description">
             Partagez vos préoccupations de manière anonyme. Votre identité ne sera jamais révélée.
           </p>
