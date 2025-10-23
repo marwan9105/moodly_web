@@ -8,17 +8,30 @@
         </div>
 
         <div class="card mood-card">
-          <h3>Enregistrer mon humeur</h3>
+          <h3 id="moodGroupLabel">Enregistrer mon humeur</h3>
           <p class="card-description">Sélectionnez l'émoticône qui correspond le mieux à votre état actuel</p>
 
-          <div class="mood-selector">
+          <!-- === Radiogroup accessible pour le choix d’humeur === -->
+          <div
+            class="mood-selector"
+            role="radiogroup"
+            :aria-labelledby="'moodGroupLabel'"
+            @keydown.left.prevent="moveMood(-1)"
+            @keydown.right.prevent="moveMood(1)"
+            @keydown.home.prevent="setMood(1)"
+            @keydown.end.prevent="setMood(5)"
+          >
             <button
               v-for="level in [1, 2, 3, 4, 5]"
               :key="level"
-              @click="selectedMood = level"
+              role="radio"
+              :aria-checked="selectedMood === level"
+              :aria-label="getMoodLabel(level)"
+              :tabindex="selectedMood === level ? 0 : -1"
+              @click="setMood(level)"
               :class="['mood-button', { active: selectedMood === level }]"
             >
-              <span class="mood-emoji">{{ getMoodEmoji(level) }}</span>
+              <span class="mood-emoji" aria-hidden="true">{{ getMoodEmoji(level) }}</span>
               <span class="mood-text">{{ getMoodLabel(level) }}</span>
             </button>
           </div>
@@ -33,11 +46,12 @@
             ></textarea>
           </div>
 
-          <button @click="saveMood" class="primary-button" :disabled="!selectedMood || isSaving">
+          <button @click="saveMood" class="primary-button" :disabled="!selectedMood || isSaving" aria-live="off">
             {{ isSaving ? 'Enregistrement...' : 'Enregistrer' }}
           </button>
 
-          <div v-if="saveSuccess" class="success-message">
+          <!-- Annonce SR -->
+          <div v-if="saveSuccess" class="success-message" role="status" aria-live="polite">
             Humeur enregistrée avec succès !
           </div>
         </div>
@@ -47,7 +61,7 @@
           <div class="mood-history">
             <div v-for="entry in myMoodEntries" :key="entry.id" class="mood-entry">
               <div class="mood-entry-header">
-                <span class="mood-emoji-large">{{ getMoodEmoji(entry.mood_level) }}</span>
+                <span class="mood-emoji-large" aria-hidden="true">{{ getMoodEmoji(entry.mood_level) }}</span>
                 <div class="mood-entry-info">
                   <span class="mood-entry-label">{{ getMoodLabel(entry.mood_level) }}</span>
                   <span class="mood-entry-date">{{ formatDate(entry.created_at) }}</span>
@@ -85,7 +99,8 @@
             {{ isSubmittingComment ? 'Envoi...' : 'Envoyer anonymement' }}
           </button>
 
-          <div v-if="commentSuccess" class="success-message">
+          <!-- Annonce SR -->
+          <div v-if="commentSuccess" class="success-message" role="status" aria-live="polite">
             Commentaire envoyé avec succès !
           </div>
         </div>
@@ -102,7 +117,7 @@
         :aria-labelledby="modalTitleId"
         @keydown.esc.prevent="closeSupport"
       >
-        <div class="modal-card" ref="modalCard">
+        <div class="modal-card" ref="modalCard" tabindex="-1">
           <h2 :id="modalTitleId" class="modal-title">On est là pour toi 🤝</h2>
           <p class="modal-text">
             Merci d’avoir partagé comment tu te sens. Si tu veux en parler, tu peux contacter
@@ -147,7 +162,7 @@ import { useAuth } from '../composables/useAuth';
 
 const { profile, user } = useAuth();
 
-const selectedMood = ref<number | null>(null);
+const selectedMood = ref<number | null>(3); // valeur par défaut focusable
 const moodNotes = ref('');
 const myMoodEntries = ref<MoodEntry[]>([]);
 const anonymousComment = ref('');
@@ -156,11 +171,7 @@ const isSubmittingComment = ref(false);
 const saveSuccess = ref(false);
 const commentSuccess = ref(false);
 
-/** ===== Config popup =====
- * BAD_MOOD_THRESHOLD : seuil à/bas duquel on ouvre le popup, après enregistrement.
- * SUPPORT_PHONE : numéro cliquable (format international recommandé).
- * Si besoin, charge depuis Strapi/Supabase et remplace ces constantes.
- */
+/** ===== Config popup ===== */
 const BAD_MOOD_THRESHOLD = 2;
 const SUPPORT_PHONE = '+33 1 84 80 00 00';
 const SUPPORT_PHONE_LABEL = SUPPORT_PHONE;
@@ -171,23 +182,29 @@ const modalTitleId = `support-${Math.random().toString(36).slice(2)}`;
 
 const loadMyMoodEntries = async () => {
   if (!user.value) return;
-
   const { data } = await supabase
     .from('mood_entries')
     .select('*')
     .eq('user_id', user.value.id)
     .order('created_at', { ascending: false })
     .limit(10);
-
   if (data) myMoodEntries.value = data;
 };
 
+function setMood(level: number) {
+  selectedMood.value = level;
+}
+function moveMood(step: number) {
+  if (selectedMood.value === null) selectedMood.value = 3;
+  let next = (selectedMood.value as number) + step;
+  if (next < 1) next = 1;
+  if (next > 5) next = 5;
+  selectedMood.value = next;
+}
+
 const saveMood = async () => {
   if (!selectedMood.value || !user.value) return;
-
-  // on garde la valeur choisie pour tester le seuil APRÈS l'insert
   const chosen = selectedMood.value;
-
   try {
     isSaving.value = true;
     saveSuccess.value = false;
@@ -197,31 +214,24 @@ const saveMood = async () => {
       mood_level: chosen,
       notes: moodNotes.value,
     });
-
     if (error) throw error;
 
-    // succès
     saveSuccess.value = true;
 
-    // afficher le popup uniquement si l'humeur enregistrée <= seuil
     if (chosen <= BAD_MOOD_THRESHOLD) {
       copyOk.value = false;
       showSupportModal.value = true;
-      // focus accessible
       requestAnimationFrame(() => {
         const el = document.getElementById(modalTitleId) as HTMLElement | null;
         el?.focus?.();
       });
     }
 
-    // reset UI
     selectedMood.value = null;
     moodNotes.value = '';
     await loadMyMoodEntries();
 
-    setTimeout(() => {
-      saveSuccess.value = false;
-    }, 3000);
+    setTimeout(() => { saveSuccess.value = false; }, 3000);
   } finally {
     isSaving.value = false;
   }
@@ -229,7 +239,6 @@ const saveMood = async () => {
 
 const saveComment = async () => {
   if (!anonymousComment.value.trim() || !user.value) return;
-
   try {
     isSubmittingComment.value = true;
     commentSuccess.value = false;
@@ -238,15 +247,11 @@ const saveComment = async () => {
       user_id: user.value.id,
       comment: anonymousComment.value,
     });
-
     if (error) throw error;
 
     commentSuccess.value = true;
     anonymousComment.value = '';
-
-    setTimeout(() => {
-      commentSuccess.value = false;
-    }, 3000);
+    setTimeout(() => { commentSuccess.value = false; }, 3000);
   } finally {
     isSubmittingComment.value = false;
   }
@@ -256,7 +261,6 @@ const getMoodEmoji = (level: number) => {
   const emojis = ['😢', '😕', '😐', '🙂', '😄'];
   return emojis[level - 1];
 };
-
 const getMoodLabel = (level: number) => {
   const labels = ['Très mauvais', 'Mauvais', 'Neutre', 'Bien', 'Excellent'];
   return labels[level - 1];
@@ -273,26 +277,17 @@ const formatDate = (date: string) => {
   });
 };
 
-function closeSupport() {
-  showSupportModal.value = false;
-}
-function ackSupport() {
-  // tracer un event si besoin (avec consentement), puis fermer
-  showSupportModal.value = false;
-}
+function closeSupport() { showSupportModal.value = false; }
+function ackSupport() { showSupportModal.value = false; }
 async function copyPhone() {
   try {
     await navigator.clipboard.writeText(SUPPORT_PHONE);
     copyOk.value = true;
     setTimeout(() => (copyOk.value = false), 1500);
-  } catch {
-    copyOk.value = false;
-  }
+  } catch { copyOk.value = false; }
 }
 
-onMounted(() => {
-  loadMyMoodEntries();
-});
+onMounted(() => { loadMyMoodEntries(); });
 </script>
 
 <style scoped>
@@ -371,44 +366,15 @@ onMounted(() => {
   gap: 8px;
 }
 
-.mood-button:hover {
-  background: #e8e8e8;
-  transform: translateY(-2px);
-}
+.mood-button:hover { background: #e8e8e8; transform: translateY(-2px); }
+.mood-button.active { background: #e0f7f7; border-color: #00bcbc; transform: scale(1.05); }
 
-.mood-button.active {
-  background: #e0f7f7;
-  border-color: #00bcbc;
-  transform: scale(1.05);
-}
+.mood-emoji { font-size: 36px; }
+.mood-text  { font-size: 12px; font-weight: 600; color: #666; text-align: center; }
+.mood-button.active .mood-text { color: #00bcbc; }
 
-.mood-emoji {
-  font-size: 36px;
-}
-
-.mood-text {
-  font-size: 12px;
-  font-weight: 600;
-  color: #666;
-  text-align: center;
-}
-
-.mood-button.active .mood-text {
-  color: #00bcbc;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.form-group label {
-  font-size: 14px;
-  font-weight: 600;
-  color: #333;
-}
+.form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.form-group label { font-size: 14px; font-weight: 600; color: #333; }
 
 .form-group textarea {
   padding: 12px 16px;
@@ -419,12 +385,7 @@ onMounted(() => {
   resize: vertical;
   transition: all 0.2s;
 }
-
-.form-group textarea:focus {
-  outline: none;
-  border-color: #00bcbc;
-  box-shadow: 0 0 0 3px rgba(0, 188, 188, 0.1);
-}
+.form-group textarea:focus { outline: none; border-color: #00bcbc; box-shadow: 0 0 0 3px rgba(0, 188, 188, 0.1); }
 
 .primary-button {
   background: #00bcbc;
@@ -438,17 +399,8 @@ onMounted(() => {
   transition: all 0.2s;
   width: 100%;
 }
-
-.primary-button:hover:not(:disabled) {
-  background: #009999;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 188, 188, 0.3);
-}
-
-.primary-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
+.primary-button:hover:not(:disabled) { background: #009999; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0, 188, 188, 0.3); }
+.primary-button:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .secondary-button {
   background: #f5f5f5;
@@ -462,16 +414,8 @@ onMounted(() => {
   transition: all 0.2s;
   width: 100%;
 }
-
-.secondary-button:hover:not(:disabled) {
-  background: #e8e8e8;
-  border-color: #ccc;
-}
-
-.secondary-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
+.secondary-button:hover:not(:disabled) { background: #e8e8e8; border-color: #ccc; }
+.secondary-button:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .success-message {
   background: #e8f5e9;
@@ -483,215 +427,68 @@ onMounted(() => {
   margin-top: 16px;
   animation: slideDown 0.3s ease-out;
 }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
+.mood-history { display: flex; flex-direction: column; gap: 16px; max-height: 500px; overflow-y: auto; }
+.mood-entry { padding: 16px; background: #f8f8f8; border-radius: 12px; border-left: 4px solid #00bcbc; }
+.mood-entry-header { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+.mood-emoji-large { font-size: 32px; }
+.mood-entry-info { display: flex; flex-direction: column; gap: 4px; }
+.mood-entry-label { font-weight: 600; color: #333; }
+.mood-entry-date  { font-size: 13px; color: #999; }
+.mood-entry-notes { margin: 8px 0 0 0; color: #666; line-height: 1.5; padding-left: 48px; }
 
-.mood-history {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  max-height: 500px;
-  overflow-y: auto;
-}
+.empty-state { text-align: center; padding: 40px; color: #999; }
 
-.mood-entry {
-  padding: 16px;
-  background: #f8f8f8;
-  border-radius: 12px;
-  border-left: 4px solid #00bcbc;
-}
-
-.mood-entry-header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 8px;
-}
-
-.mood-emoji-large {
-  font-size: 32px;
-}
-
-.mood-entry-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.mood-entry-label {
-  font-weight: 600;
-  color: #333;
-}
-
-.mood-entry-date {
-  font-size: 13px;
-  color: #999;
-}
-
-.mood-entry-notes {
-  margin: 8px 0 0 0;
-  color: #666;
-  line-height: 1.5;
-  padding-left: 48px;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 40px;
-  color: #999;
-}
-
-/* ===== Styles popup ===== */
+/* ===== Modal ===== */
 .modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 50;
-  padding: 16px;
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45);
+  display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px;
 }
+.modal-card { width: 100%; max-width: 520px; background: #fff; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); padding: 20px; }
+.modal-title { margin: 0; font-size: 20px; font-weight: 700; }
+.modal-text  { margin: 8px 0 0 0; color: #444; line-height: 1.5; }
 
-.modal-card {
-  width: 100%;
-  max-width: 520px;
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-  padding: 20px;
-}
+.support-box { margin-top: 16px; border: 1px solid #e6e6e6; border-radius: 12px; padding: 12px; }
+.support-label { font-size: 12px; color: #666; }
+.support-phone { margin-top: 4px; font-size: 20px; font-weight: 700; }
+.support-actions { display: flex; gap: 8px; margin-top: 10px; }
 
-.modal-title {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 700;
-}
+.resources { margin-top: 12px; }
+.resources summary { cursor: pointer; font-weight: 600; }
+.resources ul { margin: 8px 0 0 18px; color: #555; }
 
-.modal-text {
-  margin: 8px 0 0 0;
-  color: #444;
-  line-height: 1.5;
-}
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 
-.support-box {
-  margin-top: 16px;
-  border: 1px solid #e6e6e6;
-  border-radius: 12px;
-  padding: 12px;
-}
-
-.support-label {
-  font-size: 12px;
-  color: #666;
-}
-
-.support-phone {
-  margin-top: 4px;
-  font-size: 20px;
-  font-weight: 700;
-}
-
-.support-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.resources {
-  margin-top: 12px;
-}
-
-.resources summary {
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.resources ul {
-  margin: 8px 0 0 18px;
-  color: #555;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 16px;
-}
-
-.btn {
-  border-radius: 8px;
-  padding: 10px 14px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all .15s ease;
-}
-
-.btn-outline {
-  background: #fff;
-  border: 2px solid #e0e0e0;
-  color: #333;
-}
-.btn-outline:hover {
-  background: #f7f7f7;
-  border-color: #ccc;
-}
-
-.btn-ghost {
-  background: #f5f5f5;
-  color: #666;
-  border: 2px solid #e0e0e0;
-}
-.btn-ghost:hover {
-  background: #e8e8e8;
-  border-color: #ccc;
-}
-
-.btn-primary {
-  background: #00bcbc;
-  color: #fff;
-  border: none;
-}
-.btn-primary:hover {
-  background: #009999;
-}
+.btn { border-radius: 8px; padding: 10px 14px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s ease; }
+.btn-outline { background: #fff; border: 2px solid #e0e0e0; color: #333; }
+.btn-outline:hover { background: #f7f7f7; border-color: #ccc; }
+.btn-ghost { background: #f5f5f5; color: #666; border: 2px solid #e0e0e0; }
+.btn-ghost:hover { background: #e8e8e8; border-color: #ccc; }
+.btn-primary { background: #00bcbc; color: #fff; border: none; }
+.btn-primary:hover { background: #009999; }
 
 .fade-enter-active, .fade-leave-active { transition: opacity .15s ease }
 .fade-enter-from, .fade-leave-to { opacity: 0 }
 
-@media (max-width: 768px) {
-  .mood-selector {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  .mood-emoji {
-    font-size: 28px;
-  }
-
-  .mood-text {
-    font-size: 11px;
-  }
-
-  .welcome-card {
-    padding: 32px 20px;
-  }
-
-  .welcome-card h2 {
-    font-size: 24px;
-  }
-
-  .welcome-card p {
-    font-size: 16px;
-  }
+/* Utilitaire accessibilité (réutilisable) */
+.sr-only {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0);
+  white-space: nowrap; border: 0;
 }
 
+@media (max-width: 768px) {
+  .mood-selector { grid-template-columns: repeat(3, 1fr); }
+  .mood-emoji { font-size: 28px; }
+  .mood-text { font-size: 11px; }
+  .welcome-card { padding: 32px 20px; }
+  .welcome-card h2 { font-size: 24px; }
+  .welcome-card p { font-size: 16px; }
+}
 @media (max-width: 480px) {
-  .mood-selector {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  .mood-selector { grid-template-columns: repeat(2, 1fr); }
 }
 </style>
