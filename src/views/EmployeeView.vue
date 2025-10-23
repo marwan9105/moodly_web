@@ -9,7 +9,7 @@
 
         <div class="card mood-card">
           <h3>Enregistrer mon humeur</h3>
-          <p class="card-description">Sélectionnez l'émoticône qui correspond le mieux à votre état actuel</p>
+          <p class="card-description">Sélectionnez l'émoticône qui correspond le mieux à votre état actuel !</p>
 
           <div class="mood-selector">
             <button
